@@ -69,24 +69,24 @@ exports.login = async (req, res) => {
 
         // Check Subscription Expiry for non-superadmins and non-admins
         if (dbRole !== 'superadmin' && dbRole !== 'master admin' && dbRole !== 'masteradmin' && dbRole !== 'admin' && user.company_id) {
-            const [subs] = await db.execute(
-                'SELECT end_date FROM subscriptions WHERE company_id = ? ORDER BY end_date DESC LIMIT 1', 
-                [user.company_id]
-            );
-            if (subs.length > 0) {
-                const latestEndDate = new Date(subs[0].end_date);
-                const today = new Date();
-                latestEndDate.setHours(23, 59, 59, 999); // End of the day
-                
-                if (today > latestEndDate) {
-                    return res.status(403).json({ 
-                        message: 'Your company subscription plan has expired. Please contact your administrator to renew.' 
-                    });
-                }
-            }
-
-            // NEW REAL-TIME SUPERADMIN VERIFICATION
             try {
+                const [subs] = await db.execute(
+                    'SELECT end_date FROM subscriptions WHERE company_id = ? ORDER BY end_date DESC LIMIT 1', 
+                    [user.company_id]
+                );
+                if (subs.length > 0) {
+                    const latestEndDate = new Date(subs[0].end_date);
+                    const today = new Date();
+                    latestEndDate.setHours(23, 59, 59, 999);
+                    
+                    if (today > latestEndDate) {
+                        return res.status(403).json({ 
+                            message: 'Your company subscription plan has expired. Please contact your administrator to renew.' 
+                        });
+                    }
+                }
+
+                // REAL-TIME SUPERADMIN VERIFICATION
                 const [companies] = await db.execute('SELECT email FROM companies WHERE id = ?', [user.company_id]);
                 if (companies.length > 0) {
                     const employerEmail = companies[0].email;
@@ -101,10 +101,9 @@ exports.login = async (req, res) => {
                         }
                     }
                 }
-            } catch (superadminErr) {
-                console.warn('[AUTH] Superadmin Verification Error (Falling back to local cache):', superadminErr.message);
-                // Do not block login if Superadmin server is unreachable (e.g. ECONNREFUSED)
-                // Just fall through to the local database expiry check (which is already done above).
+            } catch (subErr) {
+                console.warn('[AUTH] Subscription check error (skipping):', subErr.message);
+                // Do not block login if subscription tables are missing or unreachable
             }
         }
 
