@@ -67,8 +67,8 @@ exports.login = async (req, res) => {
             return res.status(403).json({ message: `Access denied. You do not have ${req.body.role} privileges.` });
         }
 
-        // Check Subscription Expiry for non-superadmins
-        if (dbRole !== 'superadmin' && dbRole !== 'master admin' && dbRole !== 'masteradmin' && user.company_id) {
+        // Check Subscription Expiry for non-superadmins and non-admins
+        if (dbRole !== 'superadmin' && dbRole !== 'master admin' && dbRole !== 'masteradmin' && dbRole !== 'admin' && user.company_id) {
             const [subs] = await db.execute(
                 'SELECT end_date FROM subscriptions WHERE company_id = ? ORDER BY end_date DESC LIMIT 1', 
                 [user.company_id]
@@ -102,11 +102,9 @@ exports.login = async (req, res) => {
                     }
                 }
             } catch (superadminErr) {
-                console.error('Superadmin Verification Error:', superadminErr.message);
-                return res.status(500).json({ 
-                    message: 'Login blocked: Unable to verify subscription status with Superadmin.', 
-                    error: superadminErr.response?.data?.message || superadminErr.message 
-                });
+                console.warn('[AUTH] Superadmin Verification Error (Falling back to local cache):', superadminErr.message);
+                // Do not block login if Superadmin server is unreachable (e.g. ECONNREFUSED)
+                // Just fall through to the local database expiry check (which is already done above).
             }
         }
 
