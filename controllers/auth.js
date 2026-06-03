@@ -5,30 +5,14 @@ const axios = require('axios');
 
 exports.login = async (req, res) => {
     console.log('Login attempt:', req.body);
-    const { email, userId, password, captchaToken } = req.body;
+    const { email, userId, password } = req.body;
     const identifier = email || userId;
 
     if (!identifier) {
         return res.status(400).json({ message: 'Email or User ID is required' });
     }
 
-    if (!captchaToken) {
-        return res.status(400).json({ message: 'reCAPTCHA token is missing' });
-    }
-
     try {
-        // --- 1. Verify reCAPTCHA ---
-        const recaptchaSecretKey = process.env.RECAPTCHA_SECRET_KEY;
-        if (recaptchaSecretKey) {
-            const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecretKey}&response=${captchaToken}`;
-            const recaptchaRes = await axios.post(verifyUrl);
-            
-            if (!recaptchaRes.data.success) {
-                console.log('reCAPTCHA verification failed:', recaptchaRes.data);
-                return res.status(400).json({ message: 'reCAPTCHA verification failed. Please try again.' });
-            }
-        }
-        
         console.log('--- LOGIN DEBUG START ---');
         console.log('Identifier received:', identifier);
         
