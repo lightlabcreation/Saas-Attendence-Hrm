@@ -75,6 +75,18 @@ router.use('/face', faceRoutes);
 const chatbotController = require('../controllers/chatbot.controller');
 router.post('/chatbot', chatbotController.handleMessage);
 
+// Support routes
+const supportController = require('../controllers/support.controller');
+router.post('/support/public-ticket', supportController.createPublicTicket);
+
+const supportRoutes = require('./support.routes');
+router.use('/support', supportRoutes);
+
+// Razorpay routes
+const razorpayController = require('../controllers/razorpay.controller');
+router.post('/razorpay/create-order', auth, razorpayController.createRazorpayOrder);
+router.post('/razorpay/verify-payment', auth, razorpayController.verifyPayment);
+
 // Debug route
 router.get('/debug-db', async (req, res) => {
     try {
