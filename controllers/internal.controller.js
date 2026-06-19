@@ -31,9 +31,12 @@ exports.provisionCompany = async (req, res) => {
         // 3. Create Company
         // Using some default values for auto-provisioned companies
         const ownerName = companyName + ' Admin';
+        const trialExpiry = new Date();
+        trialExpiry.setDate(trialExpiry.getDate() + 1); // 1 day validity after payment
+
         const [companyResult] = await connection.execute(
-            'INSERT INTO companies (company_name, owner_name, email, phone, plan, status) VALUES (?, ?, ?, ?, ?, ?)',
-            [companyName, ownerName, email, phone || '', planName || 'Basic', 'active']
+            'INSERT INTO companies (company_name, owner_name, email, phone, plan, status, trial_expiry) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [companyName, ownerName, email, phone || '', planName || 'Basic', 'active', trialExpiry.toISOString().split('T')[0]]
         );
         const companyId = companyResult.insertId;
 
@@ -43,6 +46,12 @@ exports.provisionCompany = async (req, res) => {
             [ownerName, email, hashedPassword, 'admin', companyId]
         );
         const userId = userResult.insertId;
+
+        // 5. Create Subscription Entry
+        await connection.execute(
+            'INSERT INTO subscriptions (company_id, plan_name, amount, billing_cycle, start_date, end_date, payment_status) VALUES (?, ?, ?, ?, CURDATE(), ?, "paid")',
+            [companyId, planName || 'Basic', 0, 'monthly', trialExpiry.toISOString().split('T')[0]]
+        );
 
         await connection.commit();
 
